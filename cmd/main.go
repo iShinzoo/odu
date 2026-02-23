@@ -9,6 +9,7 @@ import (
 	"github.com/iShinzoo/odu/internal/db"
 	"github.com/iShinzoo/odu/internal/order"
 	"github.com/iShinzoo/odu/pkg/logger"
+	"github.com/lib/pq"
 	"go.uber.org/zap"
 )
 
@@ -49,15 +50,19 @@ func main() {
 	_, err = database.ExecContext(ctx,
 		`INSERT INTO users (id, name, email)
 	VALUES ($1, $2, $3)
-	`, userID, "krishna", "krsna@example.com")
+	`, userID, "krsna", "krsna@example.in")
 
 	if err != nil {
-		logger.Log.Fatal("Failed to create user", zap.Error(err))
+		if isDuplicateError(err) {
+			logger.Log.Warn("user already exists", zapError(err))
+		} else {
+			logger.Log.Fatal("Failed to create user", zapError(err))
+		}
 	}
 
 	newOrder, err := service.CreateOrder(ctx, userID, 250.50)
 	if err != nil {
-		logger.Log.Fatal("Failed to create order", zap.Error(err))
+		logger.Log.Fatal("Failed to create order", zapError(err))
 	}
 
 	logger.Log.Info("Order Created", zap.String("OrderID", newOrder.ID))
@@ -67,4 +72,11 @@ func main() {
 // helper for structured error logging
 func zapError(err error) zap.Field {
 	return zap.Error(err)
+}
+
+func isDuplicateError(err error) bool {
+	if pgErr, ok := err.(*pq.Error); ok {
+		return pgErr.Code == "23505"
+	}
+	return false
 }
