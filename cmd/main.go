@@ -2,12 +2,16 @@ package main
 
 import (
 	"context"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/iShinzoo/odu/internal/config"
 	"github.com/iShinzoo/odu/internal/db"
 	"github.com/iShinzoo/odu/internal/order"
+	"github.com/iShinzoo/odu/internal/worker"
 	"github.com/iShinzoo/odu/pkg/logger"
 	"github.com/lib/pq"
 	"go.uber.org/zap"
@@ -38,19 +42,30 @@ func main() {
 
 	logger.Log.Info("Application started")
 
-	//logic part
+	// create repository and service instances
 	repo := order.NewPostgresOrderRepository(database)
 	service := order.NewOrderService(repo)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	// create context for workers
+	workerCtx, workerCancel := context.WithCancel(context.Background())
+	defer workerCancel()
+
+	// start worker pool
+	pool := worker.NewPool(service)
+	pool.Start(workerCtx, 5)
+
+	logger.Log.Info("Worker pool started")
+
+	// simulate order creation
+	orderCtx, orderCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer orderCancel()
 
 	userID := uuid.New().String()
 
-	_, err = database.ExecContext(ctx,
+	_, err = database.ExecContext(orderCtx,
 		`INSERT INTO users (id, name, email)
 	VALUES ($1, $2, $3)
-	`, userID, "krsna", "krsna@example.in")
+	`, userID, "krsnaAA", "krsna@example.ZOHOIN")
 
 	if err != nil {
 		if isDuplicateError(err) {
@@ -60,13 +75,24 @@ func main() {
 		}
 	}
 
-	newOrder, err := service.CreateOrder(ctx, userID, 250.50)
+	newOrder, err := service.CreateOrder(orderCtx, userID, 250.50)
 	if err != nil {
 		logger.Log.Fatal("Failed to create order", zapError(err))
 	}
 
 	logger.Log.Info("Order Created", zap.String("OrderID", newOrder.ID))
 
+	pool.Submit(worker.Job{
+		OrderID: newOrder.ID,
+	})
+
+	waitForShutdown()
+}
+
+func waitForShutdown() {
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+	<-stop
 }
 
 // helper for structured error logging
