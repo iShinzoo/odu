@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package order;
+
+option go_package = "github.com/iShinzoo/odu/proto;orderpb";
+
+service OrderService {
+    rpc CreateOrder (CreateOrderRequest) returns (CreateOrderResponse);
+    rpc GetOrder (GetOrderRequest) returns (GetOrderResponse);
+}
+
+message CreateOrderRequest {
+    string user_id = 1;
+    double amount = 2;
+}
+
+message CreateOrderResponse {
+    string order_id = 1;
+    string status = 2;
+}
+
+message GetOrderRequest {
+    string order_id = 1;
+}
+
+message GetOrderResponse {
+    string order_id = 1;
+    string user_id = 2;
+    double amount = 3;
+    string status = 4;
+}
