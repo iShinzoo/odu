@@ -16,3 +16,8 @@ func Init() error {
 func Sync() {
 	_ = Log.Sync()
 }
+
+// helper for structured error logging
+func ZapError(err error) zap.Field {
+	return zap.Error(err)
+}
