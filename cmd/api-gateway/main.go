@@ -23,6 +23,15 @@ type CreateOrderRequest struct {
 
 func main() {
 
+	// initialize logger
+	err := logger.Init()
+	if err != nil {
+		panic(err)
+	}
+	defer logger.Sync()
+
+	logger.Log.Info("Starting API Gateway")
+
 	// connect to grpc server
 	conn, err := grpc.Dial("localhost:50051", grpc.WithInsecure())
 	if err != nil {
