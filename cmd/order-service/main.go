@@ -123,9 +123,12 @@ func main() {
 		stop := make(chan os.Signal, 1)
 		signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 		<-stop
-		logger.Log.Info("Shutting down Order gRPC service")
+		logger.Log.Info("Shutting down Order gRPC service gracefully...")
 		cancelWorkers()
 		gServer.GracefulStop()
+		database.Close()
+
+		logger.Log.Info("shutdown complete")
 	}()
 
 	if err := gServer.Serve(lis); err != nil {
