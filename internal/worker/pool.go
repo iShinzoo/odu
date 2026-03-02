@@ -38,7 +38,11 @@ func (p *Pool) worker(ctx context.Context, id int) {
 		case <-ctx.Done():
 			logger.Log.Info("Worker Shutting down", zap.Int("WorkerID", id))
 			return
-		case job := <-p.jobQueue:
+		case job, ok := <-p.jobQueue:
+			if !ok {
+				logger.Log.Info("Job queue closed", zap.Int("WorkerID", id))
+				return
+			}
 			logger.Log.Info("Processing Job",
 				zap.Int("WorkerID", id),
 				zap.String("orderID", job.OrderID),
