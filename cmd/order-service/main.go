@@ -10,6 +10,7 @@ import (
 
 	"github.com/iShinzoo/odu/internal/config"
 	"github.com/iShinzoo/odu/internal/db"
+	"github.com/iShinzoo/odu/internal/interceptor"
 	"github.com/iShinzoo/odu/internal/order"
 	"github.com/iShinzoo/odu/internal/worker"
 	"github.com/iShinzoo/odu/internal/ws"
@@ -102,7 +103,13 @@ func main() {
 		logger.Log.Fatal("Failed to listen", logger.ZapError(err))
 	}
 
-	gServer := grpc.NewServer()
+	gServer := grpc.NewServer(
+		grpc.ChainUnaryInterceptor(
+			interceptor.UnaryRequestIDInterceptor,
+			interceptor.UnaryLoggingInterceptor,
+			interceptor.UnaryRecoveryInterceptor,
+		),
+	)
 
 	orderpb.RegisterOrderServiceServer(gServer, &grpcServer{
 		service: service,
