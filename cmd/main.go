@@ -12,6 +12,7 @@ import (
 	"github.com/iShinzoo/odu/internal/db"
 	"github.com/iShinzoo/odu/internal/order"
 	"github.com/iShinzoo/odu/internal/worker"
+	"github.com/iShinzoo/odu/internal/ws"
 	"github.com/iShinzoo/odu/pkg/logger"
 	"github.com/lib/pq"
 	"go.uber.org/zap"
@@ -50,8 +51,11 @@ func main() {
 	workerCtx, workerCancel := context.WithCancel(context.Background())
 	defer workerCancel()
 
+	// create WebSocket hub
+	hub := ws.NewHub()
+
 	// start worker pool
-	pool := worker.NewPool(service)
+	pool := worker.NewPool(service, hub)
 	pool.Start(workerCtx, 5)
 
 	logger.Log.Info("Worker pool started")
