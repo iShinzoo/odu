@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,6 +12,7 @@ import (
 	"github.com/iShinzoo/odu/internal/db"
 	"github.com/iShinzoo/odu/internal/order"
 	"github.com/iShinzoo/odu/internal/worker"
+	"github.com/iShinzoo/odu/internal/ws"
 	"github.com/iShinzoo/odu/pkg/logger"
 	orderpb "github.com/iShinzoo/odu/proto"
 	"google.golang.org/grpc"
@@ -78,12 +80,21 @@ func main() {
 	repo := order.NewPostgresOrderRepository(database)
 	service := order.NewOrderService(repo)
 
+	// create WebSocket hub
+	hub := ws.NewHub()
+
 	// setup worker pool
 	workerCtx, cancelWorkers := context.WithCancel(context.Background())
 	defer cancelWorkers()
 
-	pool := worker.NewPool(service)
+	pool := worker.NewPool(service, hub)
 	pool.Start(workerCtx, 5)
+
+	// setup HTTP server for WebSocket
+	go func() {
+		http.HandleFunc("/ws", hub.HandleRequest)
+		http.ListenAndServe(":8081", nil)
+	}()
 
 	// start gRPC server
 	lis, err := net.Listen("tcp", ":50051")
