@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/iShinzoo/odu/internal/order"
+	"github.com/iShinzoo/odu/internal/ws"
 	"github.com/iShinzoo/odu/pkg/logger"
 	"go.uber.org/zap"
 )
@@ -12,12 +13,14 @@ import (
 type Pool struct {
 	jobQueue chan Job
 	service  *order.OrderService
+	hub      *ws.Hub
 }
 
-func NewPool(service *order.OrderService) *Pool {
+func NewPool(service *order.OrderService, hub *ws.Hub) *Pool {
 	return &Pool{
 		jobQueue: make(chan Job, 100), // buffered channel to hold jobs
 		service:  service,
+		hub:      hub,
 	}
 }
 
@@ -44,7 +47,9 @@ func (p *Pool) worker(ctx context.Context, id int) {
 			time.Sleep(3 * time.Second)
 
 			err := p.service.UpdateOrderStatus(ctx, job.OrderID, "PROCESSED")
-			if err != nil {
+			if err == nil {
+				p.hub.Notify(job.OrderID, "PROCESSED")
+			} else {
 				logger.Log.Error("Failed to update order status", zap.Error(err))
 			}
 		}
