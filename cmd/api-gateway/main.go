@@ -67,7 +67,7 @@ func (g *Gateway) CreateOrderHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
 
 	resp, err := g.client.CreateOrder(ctx, &orderpb.CreateOrderRequest{
@@ -87,7 +87,7 @@ func (g *Gateway) GetOrderHandler(w http.ResponseWriter, r *http.Request) {
 
 	id := chi.URLParam(r, "id")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 	defer cancel()
 
 	resp, err := g.client.GetOrder(ctx, &orderpb.GetOrderRequest{
