@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/iShinzoo/odu/pkg/logger"
 	"github.com/olahol/melody"
+	"go.uber.org/zap"
 )
 
 type Hub struct {
@@ -37,6 +39,9 @@ func NewHub() *Hub {
 		h.mu.Lock()
 		h.subs[orderID] = append(h.subs[orderID], s)
 		h.mu.Unlock()
+		logger.Log.Info("WebSocket subscription received",
+			zap.String("orderID", orderID),
+		)
 	})
 
 	return h
@@ -62,4 +67,8 @@ func (h *Hub) Notify(orderID, status string) {
 	for _, s := range sessions {
 		s.Write(data)
 	}
+	logger.Log.Info("Notify called",
+		zap.String("orderID", orderID),
+		zap.Int("subscriberCount", len(sessions)),
+	)
 }

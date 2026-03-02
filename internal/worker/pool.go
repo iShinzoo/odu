@@ -48,6 +48,9 @@ func (p *Pool) worker(ctx context.Context, id int) {
 
 			err := p.service.UpdateOrderStatus(ctx, job.OrderID, "PROCESSED")
 			if err == nil {
+				logger.Log.Info("Worker notifying websocket",
+					zap.String("orderID", job.OrderID),
+				)
 				p.hub.Notify(job.OrderID, "PROCESSED")
 			} else {
 				logger.Log.Error("Failed to update order status", zap.Error(err))
