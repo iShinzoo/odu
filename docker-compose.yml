@@ -1,7 +1,7 @@
 services:
 
   postgres:
-    image: postgres:latest
+    image: postgres:15
     container_name: order-postgres
     environment:
       POSTGRES_USER: krsna
