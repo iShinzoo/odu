@@ -1,0 +1,39 @@
+services:
+
+  postgres:
+    image: postgres:latest
+    container_name: order-postgres
+    environment:
+      POSTGRES_USER: krsna
+      POSTGRES_PASSWORD: krsna123
+      POSTGRES_DB: orderdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    
+  order-service:
+    build:
+      context: .
+      dockerfile: cmd/order-service/Dockerfile
+    container_name: order-service
+    environment:
+      DATABASE_URL: postgres://krsna:krsna123@127.0.0.1:5432/orderdb?sslmode=disable
+    depends_on:
+      - postgres
+    ports:
+      - "50051:50051"
+      - "8081:8081"
+  
+  api-gateway:
+    build:
+      context: .
+      dockerfile: cmd/api-gateway/Dockerfile
+    container_name: api-gateway
+    depends_on:
+      - order-service
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres_data:
