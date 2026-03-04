@@ -1,6 +1,11 @@
 # Real-Time Order Processing System  
 ### Go + gRPC + HTTP Gateway + Worker Pool + WebSocket + PostgreSQL
 
+![Go](https://img.shields.io/badge/Go-1.25-blue)
+![Docker](https://img.shields.io/badge/Docker-enabled-blue)
+![gRPC](https://img.shields.io/badge/gRPC-microservice-green)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-database-blue)
+
 A production-grade backend system built in Go demonstrating:
 
 - Clean architecture
@@ -12,8 +17,9 @@ A production-grade backend system built in Go demonstrating:
 - Interceptors (logging, recovery, request tracing)
 - Graceful shutdown
 - Context propagation
+- Dockerized microservice deployment
 
-This project simulates a real-world microservice architecture suitable for scalable backend systems.
+This project simulates a real-world backend system architecture commonly used in scalable microservice environments.
 
 ---
 
@@ -40,10 +46,45 @@ gRPC Order Service (:50051)
 
 ---
 
+# Containerized Architecture (Docker)
+
+```
+                +---------------------+
+                |    API Gateway      |
+                |      (HTTP)         |
+                |      :8080          |
+                +----------+----------+
+                           |
+                           v
+                +---------------------+
+                |     Order Service   |
+                |      gRPC Server    |
+                |      :50051         |
+                |  WebSocket :8081    |
+                +----------+----------+
+                           |
+                           v
+                +---------------------+
+                |     PostgreSQL      |
+                |       :5432         |
+                +---------------------+
+```
+
+All services run inside a **Docker network** and communicate using **service names**.
+
+Example:
+
+```
+api-gateway → order-service:50051
+order-service → postgres:5432
+```
+
+---
+
 # Tech Stack
 
 | Layer | Technology |
-|--------|------------|
+|------|-------------|
 | Language | Go |
 | Transport | gRPC |
 | API Layer | HTTP (Chi Router) |
@@ -52,7 +93,7 @@ gRPC Order Service (:50051)
 | Database | PostgreSQL |
 | Logging | Zap |
 | Proto | Protocol Buffers |
-| Architecture | Clean Architecture |
+| Containerization | Docker + Docker Compose |
 
 ---
 
@@ -62,13 +103,17 @@ gRPC Order Service (:50051)
 order-system/
 │
 ├── cmd/
-│   ├── order-service/        # gRPC server
-│   └── api-gateway/          # HTTP gateway
-|   └── main.go               # standalone application for manual testing purpose
+│   ├── order-service/        # gRPC + WebSocket service
+│   │   └── Dockerfile
+│   │
+│   ├── api-gateway/          # HTTP gateway
+│   │   └── Dockerfile
+│   │
+│   └── main.go               # standalone application for manual testing
 │
 ├── internal/
-│   ├── config/               # Environment config loader
-│   ├── db/                   # PostgreSQL connection
+│   ├── config/               # Environment configuration loader
+│   ├── db/                   # PostgreSQL connection + retry logic
 │   ├── order/                # Domain + service + repository
 │   ├── worker/               # Worker pool implementation
 │   ├── ws/                   # WebSocket hub
@@ -84,6 +129,8 @@ order-system/
 ├── pkg/
 │   └── logger/               # Zap logger setup
 │
+├── docker-compose.yml        # container orchestration
+│
 ├── go.mod
 └── go.sum
 ```
@@ -92,60 +139,69 @@ order-system/
 
 # System Design Concepts
 
-## 1️⃣ Clean Architecture
+## Clean Architecture
 
-- Business logic is independent of transport.
-- Repository is an interface.
-- Service depends only on abstraction.
-- Transport (gRPC / HTTP) adapts to service layer.
-
----
-
-## 2️⃣ Worker Pool Design
-
-- Fixed 5 goroutines.
-- Buffered channel for job queue.
-- Context cancellation supported.
-- Async processing of orders.
+- Business logic is independent of transport layer.
+- Repository pattern isolates database access.
+- Services depend on abstractions rather than implementations.
+- Transport layers (HTTP/gRPC) simply adapt requests to the service layer.
 
 ---
 
-## 3️⃣ Real-Time Notification Flow
+## Worker Pool Design
+
+- Fixed 5 goroutines
+- Buffered job queue
+- Context-aware processing
+- Graceful shutdown support
+
+---
+
+## Real-Time Notification Flow
 
 ```
 Order Created
       │
       ▼
-Worker Processes
+Worker Processes Order
       │
       ▼
-Status Updated in DB
+Order Status Updated in DB
       │
       ▼
 WebSocket Hub Publishes Event
       │
       ▼
-Subscribed Client Receives Update
+Subscribed Clients Receive Update
 ```
 
 ---
 
-# Setup Instructions
+# Running the System
 
-## 1️⃣ Install Requirements
+The system can be run in **two ways**:
 
-- Go (1.21+)
+1. Local Development (manual services)
+2. Docker Deployment (recommended)
+
+---
+
+# Local Development Setup
+
+## Install Requirements
+
+- Go 1.21+
+- PostgreSQL
 - Docker
-- PostgreSQL (via Docker)
 - protoc
 - protoc-gen-go
 - protoc-gen-go-grpc
 
 ---
 
-## 2️⃣ Start PostgreSQL (Docker)
+## Start PostgreSQL
 
-```bash
+```
 docker run --name order-postgres \
 -e POSTGRES_USER=admin \
 -e POSTGRES_PASSWORD=admin123 \
@@ -156,35 +212,97 @@ docker run --name order-postgres \
 
 ---
 
-## 3️⃣ Run Migrations
+## Run Migrations
 
-```bash
+```
 migrate -path migrations \
 -database "postgres://admin:admin123@localhost:5432/orderdb?sslmode=disable" up
 ```
 
 ---
 
-## 4️⃣ Run gRPC Order Service
+## Run Order Service
 
-```bash
+```
 go run cmd/order-service/main.go
 ```
 
 Runs on:
-- gRPC → `:50051`
-- WebSocket → `:8081`
+
+```
+gRPC      :50051
+WebSocket :8081
+```
 
 ---
 
-## 5️⃣ Run API Gateway
+## Run API Gateway
 
-```bash
+```
 go run cmd/api-gateway/main.go
 ```
 
 Runs on:
-- HTTP → `:8080`
+
+```
+HTTP :8080
+```
+
+---
+
+# Docker Deployment (Recommended)
+
+The entire system can be started with **one command using Docker Compose**.
+
+This launches:
+
+- PostgreSQL container
+- Order Service container
+- API Gateway container
+
+All connected through a shared Docker network.
+
+---
+
+## Start the System
+
+From the project root:
+
+```
+docker compose up --build
+```
+
+Docker will:
+
+1. Build Go binaries
+2. Create containers
+3. Start PostgreSQL
+4. Start order-service
+5. Start API gateway
+
+---
+
+## Stop the System
+
+```
+docker compose down
+```
+
+---
+
+## View Running Containers
+
+```
+docker ps
+```
+
+Expected services:
+
+```
+order-postgres
+order-service
+api-gateway
+```
 
 ---
 
@@ -192,12 +310,14 @@ Runs on:
 
 ## Create Order
 
-POST:
+POST
+
 ```
 http://localhost:8080/orders
 ```
 
 Body:
+
 ```json
 {
   "user_id": "user-1",
@@ -209,7 +329,8 @@ Body:
 
 ## Get Order
 
-GET:
+GET
+
 ```
 http://localhost:8080/orders/{order_id}
 ```
@@ -218,20 +339,22 @@ http://localhost:8080/orders/{order_id}
 
 # WebSocket Testing (Postman)
 
-1. Open WebSocket in Postman  
-2. Connect to:
+1. Open Postman  
+2. Create WebSocket request  
+
+Connect to:
 
 ```
 ws://localhost:8081/ws
 ```
 
-3. Send Order ID as message:
+Send the Order ID:
 
 ```
 "ORDER_ID_HERE"
 ```
 
-4. When worker processes order → real-time update received:
+When the worker processes the order you will receive:
 
 ```json
 {
@@ -242,7 +365,7 @@ ws://localhost:8081/ws
 
 ---
 
-# Production Features Implemented
+# Production Features
 
 ## gRPC Interceptors
 
@@ -254,20 +377,21 @@ ws://localhost:8081/ws
 
 ## Context Propagation
 
-- DB queries use `ExecContext`
-- Worker supports cancellation
-- gRPC calls have timeouts
-- HTTP propagates request context
+- Database queries use context
+- Worker pool supports cancellation
+- HTTP requests propagate context to gRPC
+- gRPC calls use timeouts
 
 ---
 
 ## Graceful Shutdown
 
-Handles:
-- SIGINT
-- Worker cancellation
-- gRPC GracefulStop()
-- DB connection close
+The system safely handles:
+
+- SIGINT / SIGTERM
+- Worker shutdown
+- gRPC GracefulStop
+- Database connection close
 
 ---
 
@@ -275,7 +399,7 @@ Handles:
 
 ---
 
-## 1️⃣ Component Diagram
+## Component Diagram
 
 ```
 +----------------+
@@ -300,7 +424,7 @@ Handles:
 
 ---
 
-## 2️⃣ Class Diagram (Domain Layer)
+## Class Diagram
 
 ```
 +------------------+
@@ -328,14 +452,12 @@ Handles:
 
 ---
 
-## 3️⃣ Sequence Diagram — Order Creation
+## Sequence Diagram
 
 ```
-Client → API Gateway → gRPC Service → DB
+Client → API Gateway → gRPC Service → Database
                                      ↓
-                                 Worker Pool
-                                     ↓
-                               Update Status
+                                  Worker Pool
                                      ↓
                                WebSocket Hub
                                      ↓
@@ -344,7 +466,7 @@ Client → API Gateway → gRPC Service → DB
 
 ---
 
-## 4️⃣ Concurrency Model
+## Concurrency Model
 
 ```
                 +------------------+
@@ -360,26 +482,27 @@ Client → API Gateway → gRPC Service → DB
 # Scalability
 
 Current system:
+
 - Single instance
 - In-memory job queue
-- In-memory WebSocket subscription map
+- In-memory WebSocket subscriptions
 
-To scale horizontally:
-- Replace worker queue with Redis/Kafka
-- Replace WebSocket hub with Redis Pub/Sub
-- Deploy behind load balancer
+Scaling strategy:
+
+- Redis / Kafka job queue
+- Redis Pub/Sub for WebSocket notifications
+- Horizontal scaling behind load balancer
 
 ---
-
 
 # Future Improvements
 
 - Prometheus metrics
 - OpenTelemetry tracing
 - JWT authentication
-- Docker Compose full stack
 - Kubernetes deployment
-- Redis-backed distributed worker queue
+- Distributed worker queue
+- Redis Pub/Sub for notifications
 
 ---
 
@@ -390,5 +513,6 @@ Built as a backend systems learning project demonstrating production-ready archi
 ---
 
 # Contact
-   - X: [@i_krsna4](https://x.com/i_krsna4)
-   - LinkedIn: [@krishnathakur1](https://www.linkedin.com/in/krishnathakur1/)
+
+X: https://x.com/i_krsna4  
+LinkedIn: https://www.linkedin.com/in/krishnathakur1/
