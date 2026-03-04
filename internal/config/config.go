@@ -8,7 +8,7 @@ type Config struct {
 
 func LoadConfig() *Config {
 	return &Config{
-		DBUrl: getEnv("DATABASE_URL", "postgres://krsna:krsna123@127.0.0.1:5432/orderdb?sslmode=disable"),
+		DBUrl: getEnv("DATABASE_URL", "postgres://krsna:krsna123@postgres:5432/orderdb?sslmode=disable"),
 	}
 }
 

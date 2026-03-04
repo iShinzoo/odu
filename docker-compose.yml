@@ -18,7 +18,7 @@ services:
       dockerfile: cmd/order-service/Dockerfile
     container_name: order-service
     environment:
-      DATABASE_URL: postgres://krsna:krsna123@127.0.0.1:5432/orderdb?sslmode=disable
+      DATABASE_URL: postgres://krsna:krsna123@postgres:5432/orderdb?sslmode=disable
     depends_on:
       - postgres
     ports:

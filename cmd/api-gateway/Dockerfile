@@ -18,4 +18,4 @@ COPY --from=builder /app/api-gateway .
 
 EXPOSE 8080
 
-CMD ["./api-gateway"]a
+CMD ["./api-gateway"]
