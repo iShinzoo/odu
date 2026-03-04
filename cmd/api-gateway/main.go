@@ -33,7 +33,7 @@ func main() {
 	logger.Log.Info("Starting API Gateway")
 
 	// connect to grpc server
-	conn, err := grpc.Dial("localhost:50051", grpc.WithInsecure())
+	conn, err := grpc.Dial("order-service:50051", grpc.WithInsecure())
 	if err != nil {
 		logger.Log.Fatal(err.Error())
 	}
